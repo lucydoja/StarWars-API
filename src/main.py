@@ -63,7 +63,7 @@ def add_planet():
 
     # recibir info del request
     request_body = request.get_json()
-    planeta = Planets(id = request_body["id"], name=request_body["name"], population=request_body["population"], terrain=request_body["terrain"], diameter=request_body["diameter"], rotation_period=request_body["rotation_period"], orbital_period=request_body["orbital_period"], gravity=request_body["gravity"], url=request_body["url"])
+    planeta = Planets(name=request_body["name"], population=request_body["population"], terrain=request_body["terrain"], diameter=request_body["diameter"], rotation_period=request_body["rotation_period"], orbital_period=request_body["orbital_period"], gravity=request_body["gravity"], url=request_body["url"], climate=request_body["climate"], surface_water=request_body["surface_water"], created=request_body["created"], edited=request_body["edited"])
     db.session.add(planeta)
     db.session.commit()
 
@@ -88,7 +88,7 @@ def add_people():
 
     # recibir info del request
     request_body = request.get_json()
-    persona = People(id = request_body["id"], name=request_body["name"], height=request_body["height"], mass=request_body["mass"], hair_color=request_body["hair_color"], skin_color=request_body["skin_color"], eye_color=request_body["eye_color"], birth_year=request_body["birth_year"], url=request_body["url"])
+    persona = People( name=request_body["name"], height=request_body["height"], mass=request_body["mass"], hair_color=request_body["hair_color"], skin_color=request_body["skin_color"], eye_color=request_body["eye_color"], birth_year=request_body["birth_year"], url=request_body["url"], created=request_body["created"], edited=request_body["edited"], homeworld=request_body["homeworld"], gender=request_body["gender"])
     db.session.add(persona)
     db.session.commit()
 

@@ -30,7 +30,7 @@ class User(db.Model):
 
 
 class Planets(db.Model):
-    id = db.Column(db.String(250), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(250), unique=True, nullable=False)
     population = db.Column(db.String(250))
     terrain = db.Column(db.String(250))
@@ -38,7 +38,12 @@ class Planets(db.Model):
     rotation_period = db.Column(db.String(250))
     orbital_period = db.Column(db.String(250))
     gravity = db.Column(db.String(250))
+    climate = db.Column(db.String(250))
+    surface_water = db.Column(db.String(250))
+    created = db.Column(db.String(250))
+    edited = db.Column(db.String(250))
     url = db.Column(db.String(250), unique=True, nullable=False)
+    
 
     def __repr__(self):
         return '<Planets %r>' % self.id
@@ -53,11 +58,15 @@ class Planets(db.Model):
             "rotation_period" : self.rotation_period,
             "orbital_period" : self.orbital_period,
             "gravity" : self.gravity,
+            "climate" : self.climate,
+            "surface_water" : self.surface_water,
+            "created" : self.created,
+            "edited" : self.edited,
             "url" : self.url
         }
 
 class People(db.Model):
-    id = db.Column(db.String(250), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(250), unique=True, nullable=False)
     height = db.Column(db.String(250))
     mass = db.Column(db.String(250))
@@ -65,7 +74,12 @@ class People(db.Model):
     skin_color = db.Column(db.String(250))
     eye_color = db.Column(db.String(250))
     birth_year = db.Column(db.String(250))
+    gender = db.Column(db.String(250))
+    created = db.Column(db.String(250))
+    edited = db.Column(db.String(250))
+    homeworld = db.Column(db.String(250))
     url = db.Column(db.String(250), unique=True, nullable=False)
+    
 
     def __repr__(self):
         return '<People %r>' % self.id
@@ -80,16 +94,20 @@ class People(db.Model):
             "skin_color" : self.skin_color,
             "eye_color" : self.eye_color,
             "birth_year" : self.birth_year,
+            "gender" : self.gender,
+            "created" : self.created,
+            "edited" : self.edited,
+            "homeworld" : self.homeworld,
             "url" : self.url
         }
 
 class Favorites(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    planet_name = db.Column(db.String(250), db.ForeignKey('Planets.name'))
-    planet_id = db.Column(db.String(250), db.ForeignKey('Planets.id'))
-    people_name = db.Column(db.String(250), db.ForeignKey('People.name'))
-    people_id = db.Column(db.String(250), db.ForeignKey('People.id'))
+    planet_name = db.Column(db.String(250), db.ForeignKey('planets.name'))
+    planet_id = db.Column(db.Integer, db.ForeignKey('planets.id'))
+    people_name = db.Column(db.String(250), db.ForeignKey('people.name'))
+    people_id = db.Column(db.Integer, db.ForeignKey('people.id'))
     
 
     def __repr__(self):
