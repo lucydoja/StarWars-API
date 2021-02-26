@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 
+
 db = SQLAlchemy()
 
 class User(db.Model):
@@ -25,10 +26,32 @@ class User(db.Model):
             "email": self.email,
             # do not serialize the password, its a security breach
         }
+
+
+
+class Favorites(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    fav_name = db.Column(db.String(250), unique=True, nullable=False)
+
+    def __repr__(self):
+        return '<Favorites %r>' % self.id
+
+    def serialize_favorites(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "fav_name": self.fav_name
+        }
+
+    def check_existance(self, variable, planets, people):
+        planetas = list(filter(lambda x : x["name"]==variable, planets))
+        personas = list(filter(lambda x : x["name"]==variable, people))
+        return variable if  len(planetas) > 0 or len(personas) > 0 else None
+
+
+
     
-
-
-
 class Planets(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(250), unique=True, nullable=False)
@@ -43,7 +66,6 @@ class Planets(db.Model):
     created = db.Column(db.String(250))
     edited = db.Column(db.String(250))
     url = db.Column(db.String(250), unique=True, nullable=False)
-    
 
     def __repr__(self):
         return '<Planets %r>' % self.id
@@ -80,7 +102,6 @@ class People(db.Model):
     homeworld = db.Column(db.String(250))
     url = db.Column(db.String(250), unique=True, nullable=False)
     
-
     def __repr__(self):
         return '<People %r>' % self.id
 
@@ -100,26 +121,6 @@ class People(db.Model):
             "homeworld" : self.homeworld,
             "url" : self.url
         }
-
-class Favorites(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    planet_name = db.Column(db.String(250), db.ForeignKey('planets.name'))
-    planet_id = db.Column(db.Integer, db.ForeignKey('planets.id'))
-    people_name = db.Column(db.String(250), db.ForeignKey('people.name'))
-    people_id = db.Column(db.Integer, db.ForeignKey('people.id'))
     
-
-    def __repr__(self):
-        return '<Favorites %r>' % self.id
-
-    def serialize_favorites(self):
-        return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "planet_name": self.planet_name,
-            "planet_id" : self.planet_id,
-            "people_name" : self.people_name,
-            "people_id" : self.people_id
-        }
+    
 

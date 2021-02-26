@@ -2,6 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 import os
+import requests
 from flask import Flask, request, jsonify, url_for
 from flask_migrate import Migrate
 from flask_swagger import swagger
@@ -33,6 +34,7 @@ def sitemap():
 @app.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
+    
     result = list(map(lambda x: x.serialize_user(), users))
 
     return jsonify(result), 200
@@ -40,6 +42,8 @@ def get_users():
 @app.route('/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):
     user = User.query.get(user_id)
+    if user is None:
+        raise APIException('This user is not in the database', status_code=404)
     result = user.serialize_user()
 
     return jsonify(result), 200
@@ -54,20 +58,26 @@ def get_planets():
 @app.route('/planets/<int:planet_id>', methods=['GET'])
 def get_planet(planet_id):
     planeta = Planets.query.get(planet_id)
+    if planeta is None:
+        raise APIException('This planet doesnt exist', status_code=404)
     result = planeta.serialize_planet()
 
     return jsonify(result), 200
 
+#You only have to do this once
 @app.route('/planets', methods=['POST'])
 def add_planet():
+    lista=[]
+    for i in range(1,11):
+        people = requests.get(f"https://www.swapi.tech/api/planets/{i}").json()["result"]["properties"]
+        lista.append(people)
+    
+    for request_body in lista:
+        planeta = Planets(name=request_body["name"], population=request_body["population"], terrain=request_body["terrain"], diameter=request_body["diameter"], rotation_period=request_body["rotation_period"], orbital_period=request_body["orbital_period"], gravity=request_body["gravity"], url=request_body["url"], climate=request_body["climate"], surface_water=request_body["surface_water"], created=request_body["created"], edited=request_body["edited"])
+        db.session.add(planeta)
+        db.session.commit()
 
-    # recibir info del request
-    request_body = request.get_json()
-    planeta = Planets(name=request_body["name"], population=request_body["population"], terrain=request_body["terrain"], diameter=request_body["diameter"], rotation_period=request_body["rotation_period"], orbital_period=request_body["orbital_period"], gravity=request_body["gravity"], url=request_body["url"], climate=request_body["climate"], surface_water=request_body["surface_water"], created=request_body["created"], edited=request_body["edited"])
-    db.session.add(planeta)
-    db.session.commit()
-
-    return jsonify("Planet added"), 200
+    return jsonify("Planets added"), 200
 
 @app.route('/people', methods=['GET'])
 def get_people():
@@ -79,53 +89,65 @@ def get_people():
 @app.route('/people/<int:people_id>', methods=['GET'])
 def get_person(people_id):
     persona = People.query.get(people_id)
+    if persona is None:
+        raise APIException('This person doesnt exist', status_code=404)
     result = persona.serialize_people()
-
     return jsonify(result), 200
 
+#You only have to do this once
 @app.route('/people', methods=['POST'])
 def add_people():
+    lista=[]
+    for i in range(1,11):
+        people = requests.get(f"https://www.swapi.tech/api/people/{i}").json()["result"]["properties"]
+        lista.append(people)
+    
+    for request_body in lista:
+        persona = People( name=request_body["name"], height=request_body["height"], mass=request_body["mass"], hair_color=request_body["hair_color"], skin_color=request_body["skin_color"], eye_color=request_body["eye_color"], birth_year=request_body["birth_year"], url=request_body["url"], created=request_body["created"], edited=request_body["edited"], homeworld=request_body["homeworld"], gender=request_body["gender"])
+        db.session.add(persona)
+        db.session.commit()
 
-    # recibir info del request
-    request_body = request.get_json()
-    persona = People( name=request_body["name"], height=request_body["height"], mass=request_body["mass"], hair_color=request_body["hair_color"], skin_color=request_body["skin_color"], eye_color=request_body["eye_color"], birth_year=request_body["birth_year"], url=request_body["url"], created=request_body["created"], edited=request_body["edited"], homeworld=request_body["homeworld"], gender=request_body["gender"])
-    db.session.add(persona)
-    db.session.commit()
-
-    return jsonify("Character added"), 200
+    return jsonify("Characters added"), 200
 
 @app.route('/users/<int:user_id>/favorites', methods=['GET'])
 def get_favorites(user_id):
     todos = Favorites.query.all()
     lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
-    favoritos = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
-    planetas = list(map( lambda x: {"fav_id": x["id"],"planet_id" : x["planet_id"], "planet_name" : x["planet_name"]}, favoritos))
-    people = list(map( lambda x: {"fav_id": x["id"],"people_id" : x["people_id"], "people_name" : x["people_name"]}, favoritos))
+    user_favs = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
+    favoritos = list(map( lambda x: {"fav_id" : x["id"], "fav_name" : x["fav_name"]}, user_favs))
     result={
         "user_id" : user_id,
-        "fav_planets" : planetas,
-        "fav_people" : people
+        "favoritos" : favoritos,
     }
     return jsonify(result), 200
     
 
 @app.route('/users/<int:user_id>/favorites', methods=['POST'])
 def add_favorite(user_id):
+    user = User.query.get(user_id)
+    if user is None:
+        raise APIException('This user is not in the database', status_code=404)
+
+    personas = People.query.all()
+    people = list(map(lambda x: x.serialize_people(), personas))
+
+    planetas = Planets.query.all()
+    planets = list(map(lambda x: x.serialize_planet(), planetas))
 
     # recibir info del request
     request_body = request.get_json()
-    favorito = Favorites(user_id = user_id, planet_name=request_body["planet_name"], planet_id=request_body["planet_id"], people_name=request_body["people_name"], people_id=request_body["people_id"])
+    favorito = Favorites(user_id = user_id, fav_name=Favorites.check_existance("algo", request_body["fav_name"], planets, people))
     db.session.add(favorito)
     db.session.commit()
 
     return jsonify("Favorite added"), 200
 
-@app.route('/favorites/<int:fav_id>', methods=['DELETE'])
-def del_favorite(fav_id):
+@app.route('/favorites/<int:favo_id>', methods=['DELETE'])
+def del_favorite(favo_id):
 
     # recibir info del request
     
-    fav = Favorites.query.get(fav_id)
+    fav = Favorites.query.get(favo_id)
     if fav is None:
         raise APIException('Favorite not found', status_code=404)
 
