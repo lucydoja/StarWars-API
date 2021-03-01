@@ -10,7 +10,13 @@ from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
 from models import db, User, Planets, People, Favorites
-#from models import Person
+import datetime
+
+## Nos permite hacer las encripciones de contraseñas
+from werkzeug.security import generate_password_hash, check_password_hash
+
+## Nos permite manejar tokens por authentication (usuarios) 
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -20,6 +26,8 @@ MIGRATE = Migrate(app, db)
 db.init_app(app)
 CORS(app)
 setup_admin(app)
+#Este es para encriptar
+jwt = JWTManager(app)
 
 # Handle/serialize errors like a JSON object
 @app.errorhandler(APIException)
@@ -77,7 +85,7 @@ def add_planet():
         db.session.add(planeta)
         db.session.commit()
 
-    return jsonify("Planets added"), 200
+    return jsonify({"msg" : "Planets added"}), 200
 
 @app.route('/people', methods=['GET'])
 def get_people():
@@ -107,9 +115,10 @@ def add_people():
         db.session.add(persona)
         db.session.commit()
 
-    return jsonify("Characters added"), 200
+    return jsonify({"msg": "Characters added"}), 200
 
 @app.route('/users/<int:user_id>/favorites', methods=['GET'])
+@jwt_required()
 def get_favorites(user_id):
     todos = Favorites.query.all()
     lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
@@ -123,6 +132,7 @@ def get_favorites(user_id):
     
 
 @app.route('/users/<int:user_id>/favorites', methods=['POST'])
+@jwt_required()
 def add_favorite(user_id):
     user = User.query.get(user_id)
     if user is None:
@@ -136,28 +146,101 @@ def add_favorite(user_id):
 
     # recibir info del request
     request_body = request.get_json()
-    favorito = Favorites(user_id = user_id, fav_name=Favorites.check_existance("algo", request_body["fav_name"], planets, people))
+    fav= Favorites.check_existance("algo", request_body["fav_name"], planets, people)
+    if fav is None:
+        raise APIException('This planet or character doesnt exist', status_code=404)
+    favorito = Favorites(user_id = user_id, fav_name=fav)
     db.session.add(favorito)
     db.session.commit()
 
-    return jsonify("Favorite added"), 200
+    return jsonify({"msg": "Favorite added"}), 200
 
 @app.route('/favorites/<int:favo_id>', methods=['DELETE'])
+@jwt_required()
 def del_favorite(favo_id):
-
-    # recibir info del request
     
     fav = Favorites.query.get(favo_id)
     if fav is None:
         raise APIException('Favorite not found', status_code=404)
 
     db.session.delete(fav)
-
     db.session.commit()
 
-    return jsonify("Favorite deleted"), 200
+    return jsonify({"msg": "Favorite deleted" }), 200
 
+@app.route('/register', methods=["POST"])
+def user_register():
+    if request.method == 'POST':
+        email = request.json.get("email", None)
+        password = request.json.get("password", None)
+        user_name = request.json.get("user_name", None)
+        first_name = request.json.get("first_name", None)
+        last_name = request.json.get("last_name", None)
 
+        if not email:
+            return jsonify({"msg": "Email is required"}), 400
+        if not password:
+            return jsonify({"msg": "Password is required"}), 400
+        if not user_name:
+            return jsonify({"msg": "Username is required"}), 400
+        if not first_name:
+            return jsonify({"msg": "First name is required"}), 400
+        if not last_name:
+            return jsonify({"msg": "Last name is required"}), 400
+
+        correo = User.query.filter_by(email=email).first()
+        if correo:
+            return jsonify({"msg": "User already exists"}), 400
+        usuario = User.query.filter_by(user_name=user_name).first()
+        if usuario:
+            return jsonify({"msg": "Username already in use"}), 400
+
+        #tenemos que guardar el password de forma encriptada
+        hashed_password = generate_password_hash(password)
+        user = User( email=email, password=hashed_password, user_name=user_name, first_name=first_name, last_name=last_name)
+
+         #Otra forma de llamar las propiedades de una clase
+        '''
+        user = User()
+        user.email = email'''
+        
+        db.session.add(user)
+        db.session.commit()
+
+        return jsonify({"msg": "Thanks. Your register was successful"}), 200
+
+@app.route('/login', methods=['POST'])
+def login():
+    if request.method == 'POST':
+        user_name= request.json.get("user_name", None)
+        password = request.json.get("password", None)
+
+        if not user_name:
+            return jsonify({"msg": "Username is required"}), 400
+        if not password:
+            return jsonify({"msg": "Password is required"}), 400
+
+        user = User.query.filter_by(user_name=user_name).first()
+        if not user:
+            return jsonify({"msg": "Username/Password are incorrect"}), 401
+           
+
+        #funcion check le meto el valor a comparar que es el pass del user en la clase, luego el valor que recibo
+        if not check_password_hash(user.password, password):
+            return jsonify({"msg": "Username/Password are incorrect"}), 401
+
+        # crear el token
+        expiracion = datetime.timedelta(days=1)
+        access_token = create_access_token(identity=user.user_name, expires_delta=expiracion)
+
+        #esto nada mas es para verificar que esta bien, ahorita tengo que borrarlo
+        data = {
+            "user": user.serialize_user(),
+            "token": access_token,
+            "expires": expiracion.total_seconds()*1000
+        }
+
+        return jsonify({"msg": "You have successfully logged in", "data": data}), 200
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
