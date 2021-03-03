@@ -121,7 +121,7 @@ def get_favorites():
         raise APIException('This user is not in the database', status_code=404)
     user_id = user.id
     
-    # este es para borrar todos los favoritos
+    # BORRAR TODOS LOS FAVORITOS
     if request.method == 'DELETE':
         user_favs = Favorites.query.filter_by(user_id=user_id)
         for items in user_favs:
@@ -144,7 +144,8 @@ def del_favorite(fav_name):
     if user is None:
         raise APIException('This user is not in the database', status_code=404)
     user_id = user.id
-
+    
+    #BORRAR UN SOLO FAVORITO
     if request.method == 'DELETE':
         fav = Favorites.query.filter_by(fav_name=fav_name, user_id=user_id).first()
         if fav is None:
@@ -152,7 +153,7 @@ def del_favorite(fav_name):
 
         db.session.delete(fav)
         db.session.commit()
-    #me agrega un favorito
+    #AGREGAR UN FAVORITO
     if request.method == 'POST':
         personas = People.query.all()
         people = list(map(lambda x: x.serialize_people(), personas))
