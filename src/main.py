@@ -85,7 +85,7 @@ def add_planet():
         db.session.add(planeta)
         db.session.commit()
 
-    return jsonify({"msg" : "Planets added"}), 200
+    return jsonify("Planets were added"), 200
 
 @app.route('/people', methods=['GET'])
 def get_people():
@@ -115,29 +115,42 @@ def add_people():
         db.session.add(persona)
         db.session.commit()
 
-    return jsonify({"msg": "Characters added"}), 200
+    return jsonify("Characters were added"), 200
 
-@app.route('/users/<int:user_id>/favorites', methods=['GET'])
+@app.route('/favorites', methods=['GET'])
 @jwt_required()
-def get_favorites(user_id):
+def get_favorites():
+    user_name = get_jwt_identity()
+    user = User.query.filter_by(user_name=user_name).first()
+    
+    if user is None:
+        raise APIException('This user is not in the database', status_code=404)
+    
+    user_id = user.id
     todos = Favorites.query.all()
     lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
     user_favs = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
-    favoritos = list(map( lambda x: {"fav_id" : x["id"], "fav_name" : x["fav_name"]}, user_favs))
-    result={
-        "user_id" : user_id,
-        "favoritos" : favoritos,
-    }
+    if len(lista_favs) == 0:
+        result = []
+        
+    else :
+        favoritos = list(map( lambda x: x["fav_name"], user_favs))
+        result = favoritos
+        
+    
     return jsonify(result), 200
     
 
-@app.route('/users/<int:user_id>/favorites', methods=['POST'])
+@app.route('/favorites', methods=['POST'])
 @jwt_required()
-def add_favorite(user_id):
-    user = User.query.get(user_id)
+def add_favorite():
+    user_name = get_jwt_identity()
+    user = User.query.filter_by(user_name=user_name).first()
+    
     if user is None:
         raise APIException('This user is not in the database', status_code=404)
 
+    user_id = user.id
     personas = People.query.all()
     people = list(map(lambda x: x.serialize_people(), personas))
 
@@ -153,20 +166,76 @@ def add_favorite(user_id):
     db.session.add(favorito)
     db.session.commit()
 
-    return jsonify({"msg": "Favorite added"}), 200
+    #mandarlos favs de nuevo
+    todos = Favorites.query.all()
+    lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
+    user_favs = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
+    if len(lista_favs) == 0:
+        result = []
+        
+    else :
+        favoritos = list(map( lambda x: x["fav_name"], user_favs))
+        result = favoritos
 
-@app.route('/favorites/<int:favo_id>', methods=['DELETE'])
+    return jsonify(result), 200
+
+@app.route('/favorites/<fav_name>', methods=['DELETE'])
 @jwt_required()
-def del_favorite(favo_id):
-    
-    fav = Favorites.query.get(favo_id)
+def del_favorite(fav_name):
+    user_name = get_jwt_identity()
+    user = User.query.filter_by(user_name=user_name).first()
+    if user is None:
+        raise APIException('This user is not in the database', status_code=404)
+
+    user_id = user.id
+    fav = Favorites.query.filter_by(fav_name=fav_name, user_id=user_id).first()
     if fav is None:
         raise APIException('Favorite not found', status_code=404)
 
     db.session.delete(fav)
     db.session.commit()
 
-    return jsonify({"msg": "Favorite deleted" }), 200
+    #mandarlos favs de nuevo
+    todos = Favorites.query.all()
+    lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
+    user_favs = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
+    if len(user_favs) == 0:
+        result = []
+        
+    else :
+        favoritos = list(map( lambda x: x["fav_name"], user_favs))
+        result = favoritos
+
+    return jsonify(result), 200
+
+@app.route('/Allfavorites', methods=['DELETE'])
+@jwt_required()
+def del_favorites():
+    user_name = get_jwt_identity()
+    user = User.query.filter_by(user_name=user_name).first()
+    if user is None:
+        raise APIException('This user is not in the database', status_code=404)
+
+    user_id = user.id
+    
+    #borrarlos
+    user_favs = Favorites.query.filter_by(user_id=user_id)
+    for items in user_favs:
+        db.session.delete(items)
+        db.session.commit()
+
+    #mandarlos favs de nuevo
+    todos = Favorites.query.all()
+    lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
+    user_fav = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
+    if len(user_fav) == 0:
+        result = [] 
+        
+    else :
+        favoritos = list(map( lambda x: x["fav_name"], user_fav))
+        result = favoritos
+
+    return jsonify(result), 200
 
 @app.route('/register', methods=["POST"])
 def user_register():
@@ -178,22 +247,22 @@ def user_register():
         last_name = request.json.get("last_name", None)
 
         if not email:
-            return jsonify({"msg": "Email is required"}), 400
+            return jsonify("Email is required"), 400
         if not password:
-            return jsonify({"msg": "Password is required"}), 400
+            return jsonify("Password is required"), 400
         if not user_name:
-            return jsonify({"msg": "Username is required"}), 400
+            return jsonify("Username is required"), 400
         if not first_name:
-            return jsonify({"msg": "First name is required"}), 400
+            return jsonify("First name is required"), 400
         if not last_name:
-            return jsonify({"msg": "Last name is required"}), 400
+            return jsonify("Last name is required"), 400
 
         correo = User.query.filter_by(email=email).first()
         if correo:
-            return jsonify({"msg": "User already exists"}), 400
+            return jsonify("This email is already registered"), 400
         usuario = User.query.filter_by(user_name=user_name).first()
         if usuario:
-            return jsonify({"msg": "Username already in use"}), 400
+            return jsonify("Username already in use"), 400
 
         #tenemos que guardar el password de forma encriptada
         hashed_password = generate_password_hash(password)
@@ -207,7 +276,7 @@ def user_register():
         db.session.add(user)
         db.session.commit()
 
-        return jsonify({"msg": "Thanks. Your register was successful"}), 200
+        return jsonify("Thanks. Your register was successful"), 200
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -216,31 +285,32 @@ def login():
         password = request.json.get("password", None)
 
         if not user_name:
-            return jsonify({"msg": "Username is required"}), 400
+            return jsonify("Username is required"), 400
         if not password:
-            return jsonify({"msg": "Password is required"}), 400
+            return jsonify("Password is required"), 400
 
         user = User.query.filter_by(user_name=user_name).first()
         if not user:
-            return jsonify({"msg": "Username/Password are incorrect"}), 401
+            return jsonify("Username/Password are incorrect"), 401
            
 
         #funcion check le meto el valor a comparar que es el pass del user en la clase, luego el valor que recibo
         if not check_password_hash(user.password, password):
-            return jsonify({"msg": "Username/Password are incorrect"}), 401
+            return jsonify("Username/Password are incorrect"), 401
 
         # crear el token
         expiracion = datetime.timedelta(days=1)
         access_token = create_access_token(identity=user.user_name, expires_delta=expiracion)
 
-        #esto nada mas es para verificar que esta bien, ahorita tengo que borrarlo
+        #esto permite agarrar el token generado del otro lado 
         data = {
-            "user": user.serialize_user(),
+            
             "token": access_token,
-            "expires": expiracion.total_seconds()*1000
+            "expires": expiracion.total_seconds()*1000,
+            
         }
 
-        return jsonify({"msg": "You have successfully logged in", "data": data}), 200
+        return jsonify(data), 200
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
