@@ -44,10 +44,11 @@ class Favorites(db.Model):
             "fav_name": self.fav_name
         }
 
-    def check_existance(self, variable, planets, people):
+    def check_existance(self, variable, planets, people, favorites):
         planetas = list(filter(lambda x : x["name"]==variable, planets))
         personas = list(filter(lambda x : x["name"]==variable, people))
-        return variable if  len(planetas) > 0 or len(personas) > 0 else None
+        favoritos = list(filter(lambda x : x==variable, favorites))
+        return variable if  len(planetas) > 0 or len(personas) > 0 and len(favoritos)==0 else None
 
 
 

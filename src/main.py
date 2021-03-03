@@ -161,13 +161,19 @@ def del_favorite(fav_name):
         planetas = Planets.query.all()
         planets = list(map(lambda x: x.serialize_planet(), planetas))
 
+        todos = Favorites.query.all()
+        lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
+        user_favs = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
+        favoritos = list(map( lambda x: x["fav_name"], user_favs))
+
         request_body = request.get_json()
-        fav= Favorites.check_existance("algo", fav_name, planets, people)
+        fav= Favorites.check_existance("algo", fav_name, planets, people, favoritos)
         if fav is None:
-            raise APIException('This planet or character doesnt exist', status_code=404)
+            raise APIException('This planet or character doesnt exist or has already been added', status_code=404)
         favorito = Favorites(user_id = user_id, fav_name=fav)
         db.session.add(favorito)
         db.session.commit()
+
     #mandar los favs de nuevo
     todos = Favorites.query.all()
     lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
