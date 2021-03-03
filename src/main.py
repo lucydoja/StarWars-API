@@ -42,9 +42,7 @@ def sitemap():
 @app.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
-    
     result = list(map(lambda x: x.serialize_user(), users))
-
     return jsonify(result), 200
 
 @app.route('/users/<int:user_id>', methods=['GET'])
@@ -53,14 +51,12 @@ def get_user(user_id):
     if user is None:
         raise APIException('This user is not in the database', status_code=404)
     result = user.serialize_user()
-
     return jsonify(result), 200
 
 @app.route('/planets', methods=['GET'])
 def get_planets():
     planetas = Planets.query.all()
     result = list(map(lambda x: x.serialize_planet(), planetas))
-
     return jsonify(result), 200
 
 @app.route('/planets/<int:planet_id>', methods=['GET'])
@@ -69,7 +65,6 @@ def get_planet(planet_id):
     if planeta is None:
         raise APIException('This planet doesnt exist', status_code=404)
     result = planeta.serialize_planet()
-
     return jsonify(result), 200
 
 #You only have to do this once
@@ -117,123 +112,67 @@ def add_people():
 
     return jsonify("Characters were added"), 200
 
-@app.route('/favorites', methods=['GET'])
+@app.route('/favorites', methods=['GET', 'DELETE'])
 @jwt_required()
 def get_favorites():
     user_name = get_jwt_identity()
     user = User.query.filter_by(user_name=user_name).first()
-    
     if user is None:
         raise APIException('This user is not in the database', status_code=404)
-    
     user_id = user.id
+    
+    # este es para borrar todos los favoritos
+    if request.method == 'DELETE':
+        user_favs = Favorites.query.filter_by(user_id=user_id)
+        for items in user_favs:
+            db.session.delete(items)
+            db.session.commit()
+
     todos = Favorites.query.all()
     lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
     user_favs = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
-    if len(lista_favs) == 0:
-        result = []
-        
-    else :
-        favoritos = list(map( lambda x: x["fav_name"], user_favs))
-        result = favoritos
-        
-    
-    return jsonify(result), 200
-    
-
-@app.route('/favorites', methods=['POST'])
-@jwt_required()
-def add_favorite():
-    user_name = get_jwt_identity()
-    user = User.query.filter_by(user_name=user_name).first()
-    
-    if user is None:
-        raise APIException('This user is not in the database', status_code=404)
-
-    user_id = user.id
-    personas = People.query.all()
-    people = list(map(lambda x: x.serialize_people(), personas))
-
-    planetas = Planets.query.all()
-    planets = list(map(lambda x: x.serialize_planet(), planetas))
-
-    # recibir info del request
-    request_body = request.get_json()
-    fav= Favorites.check_existance("algo", request_body["fav_name"], planets, people)
-    if fav is None:
-        raise APIException('This planet or character doesnt exist', status_code=404)
-    favorito = Favorites(user_id = user_id, fav_name=fav)
-    db.session.add(favorito)
-    db.session.commit()
-
-    #mandarlos favs de nuevo
-    todos = Favorites.query.all()
-    lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
-    user_favs = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
-    if len(lista_favs) == 0:
-        result = []
-        
-    else :
-        favoritos = list(map( lambda x: x["fav_name"], user_favs))
-        result = favoritos
+    favoritos = list(map( lambda x: x["fav_name"], user_favs))
+    result = favoritos
 
     return jsonify(result), 200
 
-@app.route('/favorites/<fav_name>', methods=['DELETE'])
+@app.route('/favorites/<fav_name>', methods=['DELETE', 'POST'])
 @jwt_required()
 def del_favorite(fav_name):
     user_name = get_jwt_identity()
     user = User.query.filter_by(user_name=user_name).first()
     if user is None:
         raise APIException('This user is not in the database', status_code=404)
-
     user_id = user.id
-    fav = Favorites.query.filter_by(fav_name=fav_name, user_id=user_id).first()
-    if fav is None:
-        raise APIException('Favorite not found', status_code=404)
 
-    db.session.delete(fav)
-    db.session.commit()
+    if request.method == 'DELETE':
+        fav = Favorites.query.filter_by(fav_name=fav_name, user_id=user_id).first()
+        if fav is None:
+            raise APIException('Favorite not found', status_code=404)
 
-    #mandarlos favs de nuevo
+        db.session.delete(fav)
+        db.session.commit()
+    #me agrega un favorito
+    if request.method == 'POST':
+        personas = People.query.all()
+        people = list(map(lambda x: x.serialize_people(), personas))
+
+        planetas = Planets.query.all()
+        planets = list(map(lambda x: x.serialize_planet(), planetas))
+
+        request_body = request.get_json()
+        fav= Favorites.check_existance("algo", fav_name, planets, people)
+        if fav is None:
+            raise APIException('This planet or character doesnt exist', status_code=404)
+        favorito = Favorites(user_id = user_id, fav_name=fav)
+        db.session.add(favorito)
+        db.session.commit()
+    #mandar los favs de nuevo
     todos = Favorites.query.all()
     lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
     user_favs = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
-    if len(user_favs) == 0:
-        result = []
-        
-    else :
-        favoritos = list(map( lambda x: x["fav_name"], user_favs))
-        result = favoritos
-
-    return jsonify(result), 200
-
-@app.route('/Allfavorites', methods=['DELETE'])
-@jwt_required()
-def del_favorites():
-    user_name = get_jwt_identity()
-    user = User.query.filter_by(user_name=user_name).first()
-    if user is None:
-        raise APIException('This user is not in the database', status_code=404)
-
-    user_id = user.id
-    
-    #borrarlos
-    user_favs = Favorites.query.filter_by(user_id=user_id)
-    for items in user_favs:
-        db.session.delete(items)
-        db.session.commit()
-
-    #mandarlos favs de nuevo
-    todos = Favorites.query.all()
-    lista_favs = list(map(lambda x: x.serialize_favorites(), todos))
-    user_fav = list(filter( lambda x: x["user_id"] == user_id , lista_favs))
-    if len(user_fav) == 0:
-        result = [] 
-        
-    else :
-        favoritos = list(map( lambda x: x["fav_name"], user_fav))
-        result = favoritos
+    favoritos = list(map( lambda x: x["fav_name"], user_favs))
+    result = favoritos
 
     return jsonify(result), 200
 
@@ -268,11 +207,6 @@ def user_register():
         hashed_password = generate_password_hash(password)
         user = User( email=email, password=hashed_password, user_name=user_name, first_name=first_name, last_name=last_name)
 
-         #Otra forma de llamar las propiedades de una clase
-        '''
-        user = User()
-        user.email = email'''
-        
         db.session.add(user)
         db.session.commit()
 
